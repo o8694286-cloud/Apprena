@@ -1,0 +1,15 @@
+# Python & Environnement virtuel
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Base de données locale & Uploads
+boutique.db
+static/uploads/*
+!static/uploads/.gitkeep
+
+# IDE / Système
+.DS_Store
+.vscode/
+.idea/

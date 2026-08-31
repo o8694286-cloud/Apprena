@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apprena - Fournitures Scolaires</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header>
+    <div>
+      <h2>Apprena 🎒</h2>
+      <p>Vos fournitures scolaires en un clic ou un appel</p>
+    </div>
+    <button class="cart-btn" onclick="toggleCart()">
+      🛒 Panier (<span id="cart-count">0</span>)
+    </button>
+  </header>
+
+  <main class="container">
+    <div id="product-grid" class="grid">
+      <!-- Les produits s'affichent dynamiquement -->
+    </div>
+  </main>
+
+  <!-- Modal Panier principal -->
+  <div id="cart-modal" class="modal">
+    <div class="modal-content">
+      <h3>Votre Panier</h3>
+      <div id="cart-items">
+        <p style="color:#64748b;">Votre panier est vide.</p>
+      </div>
+      <div class="total-section">
+        Total : <span id="cart-total">0</span> FCFA
+      </div>
+      <div class="actions">
+        <a id="wa-link" href="#" target="_blank" class="btn-wa">💬 Commander via WhatsApp</a>
+        <button onclick="openPhoneOptions()" class="btn-call">📞 Appeler / SMS pour commander</button>
+        <button class="close-btn" onclick="toggleCart()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sous-modal Choix du téléphone (Appel ou SMS) -->
+  <div id="phone-modal" class="modal">
+    <div class="modal-content">
+      <h3>Choisissez votre mode de contact</h3>
+      <p style="font-size: 0.9rem; color: #64748b; margin-top: 0.4rem;">
+        Ces 2 options fonctionnent sans aucune connexion Internet (réseau mobile SIM classique).
+      </p>
+      <div class="actions" style="margin-top: 1.2rem;">
+        <a id="call-direct-link" href="#" class="btn-call">📞 Passer un appel vocal direct</a>
+        <a id="sms-direct-link" href="#" class="btn-sms">✉️ Envoyer un SMS de commande</a>
+        <button class="close-btn" onclick="closePhoneOptions()">Retour au panier</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PHONE_NUMBER = "22654459999"; 
+    let cart = [];
+
+    function toggleCart() {
+      const modal = document.getElementById('cart-modal');
+      modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function openPhoneOptions() {
+      document.getElementById('cart-modal').style.display = 'none';
+      document.getElementById('phone-modal').style.display = 'flex';
+    }
+
+    function closePhoneOptions() {
+      document.getElementById('phone-modal').style.display = 'none';
+      document.getElementById('cart-modal').style.display = 'flex';
+    }
+
+    function addToCart(name, price) {
+      const existing = cart.find(item => item.name === name);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ name, price, qty: 1 });
+      }
+      updateCartUI();
+      alert(`"${name}" a été ajouté au panier !`);
+    }
+
+    function updateCartUI() {
+      const count = cart.reduce((sum, item) => sum + item.qty, 0);
+      const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      
+      const countEl = document.getElementById('cart-count');
+      const totalEl = document.getElementById('cart-total');
+      if (countEl) countEl.innerText = count;
+      if (totalEl) totalEl.innerText = total;
+
+      const itemsContainer = document.getElementById('cart-items');
+      const siteUrl = window.location.origin;
+
+      let text = "";
+
+      if (cart.length === 0) {
+        if (itemsContainer) itemsContainer.innerHTML = "<p style='color:#64748b;'>Votre panier est vide.</p>";
+        text = `Bonjour Apprena, je souhaite me renseigner sur vos fournitures scolaires.\nCatalogue: ${siteUrl}`;
+      } else {
+        if (itemsContainer) {
+          itemsContainer.innerHTML = cart.map(item => `
+            <div class="cart-item">
+              <span>${item.name} (x${item.qty})</span>
+              <strong>${item.price * item.qty} FCFA</strong>
+            </div>
+          `).join('');
+        }
+
+        text = "Bonjour Apprena, je souhaite passer la commande suivante :\n\n";
+        cart.forEach(item => {
+          text += `• ${item.name} (x${item.qty}) : ${item.price * item.qty} FCFA\n`;
+        });
+        text += `\nTotal : ${total} FCFA\n`;
+        text += `Lien catalogue: ${siteUrl}`;
+      }
+
+      // 1. Lien WhatsApp
+      const waBtn = document.getElementById('wa-link');
+      if (waBtn) waBtn.href = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(text)}`;
+
+      // 2. Lien Appel Vocal GSM (Fonctionne 100% hors ligne)
+      const callBtn = document.getElementById('call-direct-link');
+      if (callBtn) callBtn.href = `tel:+${PHONE_NUMBER}`;
+
+      // 3. Lien SMS pré-rempli (Fonctionne 100% hors ligne)
+      const smsBtn = document.getElementById('sms-direct-link');
+      if (smsBtn) smsBtn.href = `sms:+${PHONE_NUMBER}?body=${encodeURIComponent(text)}`;
+    }
+
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products');
+        const products = await res.json();
+        const grid = document.getElementById('product-grid');
+        
+        if (products.length === 0) {
+          grid.innerHTML = "<p>Aucun produit disponible pour le moment.</p>";
+          return;
+        }
+
+        grid.innerHTML = products.map(p => `
+          <div class="card">
+            <img src="${p.image_url}" alt="${p.name}">
+            <div class="card-body">
+              <div>
+                <div class="card-title">${p.name}</div>
+                <div class="price">${p.price} FCFA</div>
+              </div>
+              <button class="add-btn" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', ${p.price})">
+                + Ajouter au panier
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error("Erreur de chargement des produits :", err);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProducts();
+      updateCartUI();
+    });
+  </script>
+</body>
+</html>

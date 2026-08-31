@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Apprena</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header>
+    <div>
+      <h2>Apprena Admin</h2>
+      <p style="font-size:0.8rem; opacity:0.8;">Gestion du catalogue</p>
+    </div>
+    <a href="/" style="color:white; text-decoration:none; font-weight:bold;">Voir la boutique ↗</a>
+  </header>
+
+  <div class="container" style="max-width: 500px;">
+    <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+      <h3 style="margin-bottom:15px;">Ajouter un nouveau produit</h3>
+      
+      <form id="add-product-form" style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Nom du produit</label>
+          <input type="text" id="name" required placeholder="ex: Cahier 200p Grand Format" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+        </div>
+
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Prix (FCFA)</label>
+          <input type="number" id="price" required placeholder="1200" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+        </div>
+
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Stock initial</label>
+          <input type="number" id="stock" required placeholder="50" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+        </div>
+
+        <div>
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Photo du produit</label>
+          <input type="file" id="image" accept="image/*" required style="width:100%;">
+        </div>
+
+        <button type="submit" class="add-btn" style="background:#25D366; margin-top:10px; padding:12px; font-size:1rem;">
+          💾 Enregistrer dans la boutique
+        </button>
+      </form>
+      
+      <div id="status-msg" style="margin-top:15px; font-weight:bold; text-align:center;"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData();
+      formData.append('name', document.getElementById('name').value);
+      formData.append('price', document.getElementById('price').value);
+      formData.append('stock', document.getElementById('stock').value);
+      formData.append('image', document.getElementById('image').files[0]);
+
+      const statusMsg = document.getElementById('status-msg');
+      statusMsg.innerText = "Enregistrement en cours...";
+
+      try {
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          statusMsg.style.color = "green";
+          statusMsg.innerText = "✅ Produit ajouté avec succès !";
+          document.getElementById('add-product-form').reset();
+        } else {
+          throw new Error();
+        }
+      } catch (err) {
+        statusMsg.style.color = "red";
+        statusMsg.innerText = "❌ Erreur lors de l'ajout du produit.";
+      }
+    });
+  </script>
+</body>
+</html>
