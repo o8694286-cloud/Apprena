@@ -10,7 +10,7 @@ security = HTTPBasic()
 
 # Remplacez vos identifiants ici si besoin
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "vos_mot_de_passe_secret"
+ADMIN_PASSWORD = "NouveauMotDePasse"
 
 def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
