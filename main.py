@@ -1,5 +1,6 @@
 import secrets
-from fastapi import FastAPI, Depends, HTTPException, status
+import os
+from fastapi import FastAPI, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,9 +9,9 @@ app = FastAPI()
 
 security = HTTPBasic()
 
-# Remplacez vos identifiants ici si besoin
+# Vos identifiants de connexion
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "NouveauMotDePasse"
+ADMIN_PASSWORD = "vos_mot_de_passe_secret"
 
 def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
@@ -23,12 +24,23 @@ def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-# Route sécurisée pour la page admin
+# Route sécurisée demandant un mot de passe
 @app.get("/admin")
 def get_admin_page(username: str = Depends(authenticate_admin)):
     return FileResponse("static/admin.html")
 
-# Conservez le reste de vos routes et le montage statique
+# Route d'ajout de produit pour le formulaire admin
+@app.post("/api/products")
+async def add_product(
+    name: str = Form(...),
+    price: float = Form(...),
+    stock: int = Form(...),
+    image: UploadFile = File(...)
+):
+    # Logique de traitement / sauvegarde
+    return {"message": "Produit ajouté avec succès"}
+
+# Montage des fichiers statiques
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
