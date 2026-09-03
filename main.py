@@ -12,7 +12,6 @@ app = FastAPI(title="Apprena - Fournitures Scolaires")
 
 security = HTTPBasic()
 
-# Vos identifiants admin
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "vos_mot_de_passe_secret"
 
@@ -39,24 +38,26 @@ def get_db():
     if not DATABASE_URL:
         raise Exception("La variable DATABASE_URL n'est pas configurée dans Render.")
     url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
-    return conn
+    return psycopg2.connect(url, cursor_factory=RealDictCursor)
 
 def init_db():
     if DATABASE_URL:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS products (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                price NUMERIC NOT NULL,
-                stock INTEGER DEFAULT 0,
-                image_url TEXT
-            )
-        """)
-        conn.commit()
-        conn.close()
+        try:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS products (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    price NUMERIC NOT NULL,
+                    stock INTEGER DEFAULT 0,
+                    image_url TEXT
+                )
+            """)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Erreur d'initialisation de la base : {e}")
 
 @app.on_event("startup")
 def startup():
@@ -72,12 +73,15 @@ async def read_admin(username: str = Depends(authenticate_admin)):
 
 @app.get("/api/products")
 async def get_products():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM products ORDER BY id DESC")
-    products = cursor.fetchall()
-    conn.close()
-    return products
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM products ORDER BY id DESC")
+        products = cursor.fetchall()
+        conn.close()
+        return products
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/products")
 async def add_product(
@@ -86,25 +90,32 @@ async def add_product(
     stock: int = Form(0),
     image: UploadFile = File(...)
 ):
-    image_filename = f"uploads/{image.filename}"
-    with open(image_filename, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    try:
+        os.makedirs("uploads", exist_ok=True)
+        image_filename = f"uploads/{image.filename}"
+        with open(image_filename, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
 
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO products (name, price, stock, image_url) VALUES (%s, %s, %s, %s)",
-        (name, price, stock, f"/{image_filename}")
-    )
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Produit ajouté avec succès !"}
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO products (name, price, stock, image_url) VALUES (%s, %s, %s, %s)",
+            (name, price, stock, f"/{image_filename}")
+        )
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Produit ajouté avec succès !"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/products/{product_id}")
 async def delete_product(product_id: int):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM products WHERE id = %s", (product_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Produit supprimé avec succès !"}
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM products WHERE id = %s", (product_id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Produit supprimé avec succès !"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
