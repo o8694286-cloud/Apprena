@@ -1,20 +1,21 @@
-import sqlite3
+import os
 import secrets
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
-import os
 import shutil
 
 app = FastAPI(title="Apprena - Fournitures Scolaires")
 
-# Sécurité Basic Auth
 security = HTTPBasic()
 
-# Vos identifiants de connexion Admin
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "vos_mot_de_passe_secret"
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
@@ -27,57 +28,57 @@ def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-# Création des dossiers nécessaires
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("static", exist_ok=True)
 
-# Montage des fichiers statiques
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def get_db():
-    # Option nolock=1 pour éviter le blocage SQLite sur la mémoire /sdcard Android
-    conn = sqlite3.connect("file:boutique.db?nolock=1", uri=True, timeout=10)
-    conn.row_factory = sqlite3.Row
+    if not DATABASE_URL:
+        raise Exception("La variable DATABASE_URL n'est pas configurée.")
+    # Correction automatique de l'URL si elle commence par postgres:// au lieu de postgresql://
+    url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL,
-            stock INTEGER DEFAULT 0,
-            image_url TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    if DATABASE_URL:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                price NUMERIC NOT NULL,
+                stock INTEGER DEFAULT 0,
+                image_url TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
 
-init_db()
+@app.on_event("startup")
+def startup():
+    init_db()
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     return FileResponse("static/index.html")
 
-# Route admin protégée par mot de passe
 @app.get("/admin", response_class=HTMLResponse)
 async def read_admin(username: str = Depends(authenticate_admin)):
     return FileResponse("static/admin.html")
 
-# Route d'obtention des produits
 @app.get("/api/products")
 async def get_products():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM products ORDER BY id DESC")
-    products = [dict(row) for row in cursor.fetchall()]
+    products = cursor.fetchall()
     conn.close()
     return products
 
-# Route d'ajout d'un produit
 @app.post("/api/products")
 async def add_product(
     name: str = Form(...),
@@ -92,23 +93,18 @@ async def add_product(
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)",
+        "INSERT INTO products (name, price, stock, image_url) VALUES (%s, %s, %s, %s)",
         (name, price, stock, f"/{image_filename}")
     )
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Produit ajouté avec succès !"}
 
-# Route de suppression d'un produit
 @app.delete("/api/products/{product_id}")
 async def delete_product(product_id: int):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    cursor.execute("DELETE FROM products WHERE id = %s", (product_id,))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Produit supprimé avec succès !"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
