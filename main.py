@@ -12,6 +12,7 @@ app = FastAPI(title="Apprena - Fournitures Scolaires")
 
 security = HTTPBasic()
 
+# Vos identifiants admin
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "vos_mot_de_passe_secret"
 
@@ -36,8 +37,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def get_db():
     if not DATABASE_URL:
-        raise Exception("La variable DATABASE_URL n'est pas configurée.")
-    # Correction automatique de l'URL si elle commence par postgres:// au lieu de postgresql://
+        raise Exception("La variable DATABASE_URL n'est pas configurée dans Render.")
     url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     conn = psycopg2.connect(url, cursor_factory=RealDictCursor)
     return conn
