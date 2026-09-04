@@ -36,7 +36,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def get_db():
     if not DATABASE_URL:
-        raise Exception("La variable DATABASE_URL n'est pas configurée dans Render.")
+        raise Exception("La variable DATABASE_URL n'est pas configurée sur Render.")
     url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(url, cursor_factory=RealDictCursor)
 
@@ -56,8 +56,9 @@ def init_db():
             """)
             conn.commit()
             conn.close()
+            print("Base de données initialisée avec succès.")
         except Exception as e:
-            print(f"Erreur d'initialisation de la base : {e}")
+            print(f"Erreur lors de l'initialisation de la base : {e}")
 
 @app.on_event("startup")
 def startup():
