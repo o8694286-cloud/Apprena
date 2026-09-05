@@ -5,44 +5,137 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apprena - Fournitures Scolaires</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .btn {
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn-main { background: #eeb025; color: #1e293b; }
+        .btn-close { background: #64748b; color: white; }
+    </style>
 </head>
 <body>
     <header style="background-color: #0f172a; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1 style="margin:0; font-size: 1.5rem;">Apprena 🎒</h1>
-            <p style="margin:5px 0 0 0; font-size: 0.9rem;">Vos fournitures scolaires en un clic ou un appel</p>
+            <h1 style="margin:0; font-size: 1.4rem;">Apprena 🎒</h1>
+            <p style="margin:2px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Vos fournitures scolaires en un clic</p>
         </div>
-        <button id="cart-btn" style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 8px;">Panier (0)</button>
+        <button id="cart-btn" class="btn btn-main" style="width: auto;" onclick="openCart()">
+            🛒 Panier (<span id="cart-count">0</span>)
+        </button>
     </header>
 
-    <main class="product-grid" id="products-container">
-        <!-- Produits générés dynamiquement -->
+    <main class="product-grid" id="products-container" style="padding: 15px;">
+        <p>Chargement des produits...</p>
     </main>
 
+    <!-- Modal Panier -->
+    <div id="cart-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0;">Votre Panier</h2>
+            <div id="cart-items" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;">
+                Votre panier est vide.
+            </div>
+            <hr>
+            <p style="font-size: 1.1rem;"><strong>Total : <span id="cart-total">0</span> FCFA</strong></p>
+            <button class="btn" style="background:#25D366; color:white;" onclick="orderWhatsApp()">Commander via WhatsApp</button>
+            <button class="btn btn-close" onclick="closeCart()">Fermer</button>
+        </div>
+    </div>
+
     <script>
+        let cart = [];
+
         async function fetchProducts() {
-            const res = await fetch('/api/products');
-            const products = await res.json();
-            const container = document.getElementById('products-container');
+            try {
+                const res = await fetch('/api/products');
+                const products = await res.json();
+                const container = document.getElementById('products-container');
+                
+                if (!products || products.length === 0) {
+                    container.innerHTML = "<p>Aucun produit disponible pour le moment.</p>";
+                    return;
+                }
+
+                container.innerHTML = products.map(p => `
+                    <div class="product-card" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background: white;">
+                        <img src="${p.image_url}" alt="${p.name}" style="width:100%; height:140px; object-fit:cover; border-radius: 6px;">
+                        <h3 style="font-size: 1rem; margin: 10px 0 5px 0;">${p.name}</h3>
+                        <p style="color: #2563eb; font-weight: bold; margin: 0 0 10px 0;">${p.price} FCFA</p>
+                        <button class="btn btn-main" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', ${p.price})">+ Ajouter au panier</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Erreur de chargement:", err);
+            }
+        }
+
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            document.getElementById('cart-count').innerText = cart.length;
+            alert(name + " a été ajouté au panier !");
+        }
+
+        function openCart() {
+            const modal = document.getElementById('cart-modal');
+            const cartItemsContainer = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
             
-            if (products.length === 0) {
-                container.innerHTML = "<p style='padding: 20px;'>Aucun produit disponible pour le moment.</p>";
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = "<p style='color:#64748b;'>Votre panier est vide.</p>";
+                cartTotal.innerText = 0;
+            } else {
+                cartItemsContainer.innerHTML = cart.map(item => `
+                    <div style="display:flex; justify-content:space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9;">
+                        <span>${item.name}</span>
+                        <strong>${item.price} FCFA</strong>
+                    </div>
+                `).join('');
+                const total = cart.reduce((sum, item) => sum + item.price, 0);
+                cartTotal.innerText = total;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeCart() {
+            document.getElementById('cart-modal').style.display = 'none';
+        }
+
+        function orderWhatsApp() {
+            if (cart.length === 0) {
+                alert("Votre panier est vide !");
                 return;
             }
-
-            container.innerHTML = products.map(p => `
-                <div class="product-card">
-                    <div class="product-image-container">
-                        <img src="${p.image_url}" alt="${p.name}">
-                    </div>
-                    <div class="product-details">
-                        <div class="product-title">${p.name}</div>
-                        <div class="product-price">${p.price} FCFA</div>
-                        <button class="btn-add-cart">+ Ajouter au panier</button>
-                    </div>
-                </div>
-            `).join('');
+            let text = "Bonjour Apprena, je souhaite commander :\n";
+            cart.forEach(item => { text += `- ${item.name} (${item.price} FCFA)\n`; });
+            const total = cart.reduce((sum, item) => sum + item.price, 0);
+            text += `\nTotal: ${total} FCFA`;
+            window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
         }
+
         fetchProducts();
     </script>
 </body>
