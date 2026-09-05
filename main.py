@@ -8,7 +8,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 import shutil
 
-# Import hybride pour la base de données
 try:
     import pg8000.native
     HAS_PG8000 = True
@@ -18,22 +17,10 @@ except ImportError:
 app = FastAPI(title="Apprena - Fournitures Scolaires")
 
 security = HTTPBasic()
-
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "vos_mot_de_passe_secret"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
-def authenticate_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
-    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Identifiants incorrects",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
 
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("static", exist_ok=True)
@@ -43,7 +30,6 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 def get_db_connection():
     if DATABASE_URL and HAS_PG8000:
-        # Configuration PostgreSQL distante (Render) via pg8000
         url = urllib.parse.urlparse(DATABASE_URL)
         conn = pg8000.native.Connection(
             user=url.username,
@@ -54,14 +40,15 @@ def get_db_connection():
         )
         return conn, "postgres"
     else:
-        # Repli local SQLite sur mobile
         conn = sqlite3.connect("boutique.db")
         conn.row_factory = sqlite3.Row
         return conn, "sqlite"
 
-def init_db():
+def init_and_seed_db():
     try:
         conn, db_type = get_db_connection()
+        default_img = "https://placehold.co/600x400/eeb025/ffffff?text=Image+Produit"
+        
         if db_type == "postgres":
             conn.run("""
                 CREATE TABLE IF NOT EXISTS products (
@@ -72,6 +59,17 @@ def init_db():
                     image_url TEXT
                 );
             """)
+            count = conn.run("SELECT COUNT(*) FROM products;")[0][0]
+            if count == 0:
+                for i in range(1, 101):
+                    conn.run(
+                        "INSERT INTO products (name, price, stock, image_url) VALUES (:n, :p, :s, :i)",
+                        n=f"Produit N°{i} - Fourniture Scolaire",
+                        p=1000 * (i % 10 + 1),
+                        s=50,
+                        i=default_img
+                    )
+                print("100 produits automatiques insérés sur Postgres !")
             conn.close()
         else:
             cursor = conn.cursor()
@@ -84,91 +82,41 @@ def init_db():
                     image_url TEXT
                 );
             """)
-            conn.commit()
+            cursor.execute("SELECT COUNT(*) FROM products;")
+            if cursor.fetchone()[0] == 0:
+                for i in range(1, 101):
+                    cursor.execute(
+                        "INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)",
+                        (f"Produit N°{i} - Fourniture Scolaire", 1000 * (i % 10 + 1), 50, default_img)
+                    )
+                conn.commit()
+                print("100 produits automatiques insérés sur SQLite !")
             conn.close()
-        print(f"Base de données ({db_type}) initialisée.")
     except Exception as e:
         print(f"Erreur d'initialisation DB: {e}")
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    init_and_seed_db()
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     return FileResponse("static/index.html")
-
-@app.get("/admin", response_class=HTMLResponse)
-async def read_admin(username: str = Depends(authenticate_admin)):
-    return FileResponse("static/admin.html")
 
 @app.get("/api/products")
 async def get_products():
     try:
         conn, db_type = get_db_connection()
         if db_type == "postgres":
-            rows = conn.run("SELECT id, name, price, stock, image_url FROM products ORDER BY id DESC")
+            rows = conn.run("SELECT id, name, price, stock, image_url FROM products ORDER BY id ASC")
             products = [{"id": r[0], "name": r[1], "price": float(r[2]), "stock": r[3], "image_url": r[4]} for r in rows]
             conn.close()
         else:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM products ORDER BY id DESC")
+            cursor.execute("SELECT * FROM products ORDER BY id ASC")
             rows = cursor.fetchall()
             products = [dict(row) for row in rows]
             conn.close()
         return products
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/products")
-async def add_product(
-    name: str = Form(...),
-    price: float = Form(...),
-    stock: int = Form(0),
-    image: UploadFile = File(...)
-):
-    try:
-        file_path = f"uploads/{image.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-
-        conn, db_type = get_db_connection()
-        img_url = f"/{file_path}"
-        
-        if db_type == "postgres":
-            conn.run(
-                "INSERT INTO products (name, price, stock, image_url) VALUES (:n, :p, :s, :i)",
-                n=name, p=price, s=stock, i=img_url
-            )
-            conn.close()
-        else:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)",
-                (name, price, stock, img_url)
-            )
-            conn.commit()
-            conn.close()
-        return {"status": "success", "message": "Produit ajouté avec succès !"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/api/products/{product_id}")
-async def delete_product(product_id: int):
-    try:
-        conn, db_type = get_db_connection()
-        if db_type == "postgres":
-            conn.run("DELETE FROM products WHERE id = :id", id=product_id)
-            conn.close()
-        else:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM products WHERE id = ?", (product_id,))
-            conn.commit()
-            conn.close()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
