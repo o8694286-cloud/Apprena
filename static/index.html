@@ -33,15 +33,15 @@
             width: 100%;
             margin-top: 8px;
             text-decoration: none;
-            display: inline-block;
+            display: block;
             text-align: center;
             box-sizing: border-box;
         }
         .btn-main { background: #eeb025; color: #1e293b; }
         .btn-close { background: #64748b; color: white; }
         .btn-wa { background: #25D366; color: white; }
-        .btn-call { background: #0284c7; color: white; }
-        .btn-sms { background: #f59e0b; color: white; }
+        .btn-call { background: #0284c7; color: white; flex: 1; }
+        .btn-sms { background: #f59e0b; color: white; flex: 1; }
         .contact-bar {
             background: #1e293b;
             padding: 10px;
@@ -62,7 +62,6 @@
         </button>
     </header>
 
-    <!-- Barre d'appel direct et SMS -->
     <div class="contact-bar">
         <a href="tel:+22654459999" class="btn btn-call" style="margin:0;">📞 Appeler</a>
         <a href="sms:+22654459999" class="btn btn-sms" style="margin:0;">💬 SMS</a>
@@ -72,7 +71,6 @@
         <p>Chargement des produits...</p>
     </main>
 
-    <!-- Modal Panier -->
     <div id="cart-modal" class="modal">
         <div class="modal-content">
             <h2 style="margin-top:0;">Votre Panier</h2>
@@ -81,13 +79,12 @@
             </div>
             <hr>
             <p style="font-size: 1.1rem;"><strong>Total : <span id="cart-total">0</span> FCFA</strong></p>
-            <button class="btn btn-wa" onclick="orderWhatsApp()">Commander via WhatsApp</button>
+            <a id="wa-link" href="#" class="btn btn-wa" onclick="orderWhatsApp(event)">Commander via WhatsApp</a>
             <button class="btn btn-close" onclick="closeCart()">Fermer</button>
         </div>
     </div>
 
     <script>
-        // METTEZ VOTRE NUMÉRO ICI SANS LE + (Exemple: 226XXXXXXXX)
         const PHONE_NUMBER = "22654459999"; 
         let cart = [];
 
@@ -146,7 +143,8 @@
             document.getElementById('cart-modal').style.display = 'none';
         }
 
-        function orderWhatsApp() {
+        function orderWhatsApp(e) {
+            e.preventDefault();
             if (cart.length === 0) {
                 alert("Votre panier est vide !");
                 return;
@@ -156,7 +154,7 @@
             const total = cart.reduce((sum, item) => sum + item.price, 0);
             text += `\nTotal: ${total} FCFA`;
             
-            window.open("https://wa.me/" + PHONE_NUMBER + "?text=" + encodeURIComponent(text), "_blank");
+            window.location.href = "https://wa.me/" + PHONE_NUMBER + "?text=" + encodeURIComponent(text);
         }
 
         fetchProducts();
