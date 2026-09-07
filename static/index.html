@@ -32,9 +32,23 @@
             cursor: pointer;
             width: 100%;
             margin-top: 8px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            box-sizing: border-box;
         }
         .btn-main { background: #eeb025; color: #1e293b; }
         .btn-close { background: #64748b; color: white; }
+        .btn-wa { background: #25D366; color: white; }
+        .btn-call { background: #0284c7; color: white; }
+        .btn-sms { background: #f59e0b; color: white; }
+        .contact-bar {
+            background: #1e293b;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -43,10 +57,16 @@
             <h1 style="margin:0; font-size: 1.4rem;">Apprena 🎒</h1>
             <p style="margin:2px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">Vos fournitures scolaires en un clic</p>
         </div>
-        <button id="cart-btn" class="btn btn-main" style="width: auto;" onclick="openCart()">
+        <button id="cart-btn" class="btn btn-main" style="width: auto; margin:0;" onclick="openCart()">
             🛒 Panier (<span id="cart-count">0</span>)
         </button>
     </header>
+
+    <!-- Barre d'appel direct et SMS -->
+    <div class="contact-bar">
+        <a href="tel:+22654459999" class="btn btn-call" style="margin:0;">📞 Appeler</a>
+        <a href="sms:+22654459999" class="btn btn-sms" style="margin:0;">💬 SMS</a>
+    </div>
 
     <main class="product-grid" id="products-container" style="padding: 15px;">
         <p>Chargement des produits...</p>
@@ -61,12 +81,14 @@
             </div>
             <hr>
             <p style="font-size: 1.1rem;"><strong>Total : <span id="cart-total">0</span> FCFA</strong></p>
-            <button class="btn" style="background:#25D366; color:white;" onclick="orderWhatsApp()">Commander via WhatsApp</button>
+            <button class="btn btn-wa" onclick="orderWhatsApp()">Commander via WhatsApp</button>
             <button class="btn btn-close" onclick="closeCart()">Fermer</button>
         </div>
     </div>
 
     <script>
+        // METTEZ VOTRE NUMÉRO ICI SANS LE + (Exemple: 226XXXXXXXX)
+        const PHONE_NUMBER = "22654459999"; 
         let cart = [];
 
         async function fetchProducts() {
@@ -81,8 +103,8 @@
                 }
 
                 container.innerHTML = products.map(p => `
-                    <div class="product-card" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background: white;">
-                        <img src="${p.image_url}" alt="${p.name}" style="width:100%; height:140px; object-fit:cover; border-radius: 6px;">
+                    <div class="product-card" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; background: white; margin-bottom: 15px;">
+                        <img src="${p.image_url}" alt="${p.name}" style="width:100%; height:160px; object-fit:cover; border-radius: 6px;">
                         <h3 style="font-size: 1rem; margin: 10px 0 5px 0;">${p.name}</h3>
                         <p style="color: #2563eb; font-weight: bold; margin: 0 0 10px 0;">${p.price} FCFA</p>
                         <button class="btn btn-main" onclick="addToCart('${p.name.replace(/'/g, "\\'")}', ${p.price})">+ Ajouter au panier</button>
@@ -133,7 +155,8 @@
             cart.forEach(item => { text += `- ${item.name} (${item.price} FCFA)\n`; });
             const total = cart.reduce((sum, item) => sum + item.price, 0);
             text += `\nTotal: ${total} FCFA`;
-            window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+            
+            window.open("https://wa.me/" + PHONE_NUMBER + "?text=" + encodeURIComponent(text), "_blank");
         }
 
         fetchProducts();
