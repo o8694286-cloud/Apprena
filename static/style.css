@@ -32,8 +32,8 @@ body {
 
 .product-image-container {
     width: 100%;
-    height: 220px;
-    background-color: var(--brand-yellow);
+    height: 320px;
+    background-color: #f1f5f9;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -43,7 +43,8 @@ body {
 .product-image-container img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    padding: 10px;
 }
 
 .product-details {
