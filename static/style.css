@@ -3,6 +3,7 @@
     --brand-yellow: #eeb025;
     --card-bg: #ffffff;
     --text-color: #1e293b;
+    --price-blue: #2563eb;
 }
 
 body {
@@ -64,7 +65,7 @@ body {
 .product-price {
     font-weight: 800;
     font-size: 1.2rem;
-    color: #dc2626;
+    color: var(--price-blue);
     margin-bottom: 16px;
 }
 
