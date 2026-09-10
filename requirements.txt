@@ -1,5 +1,6 @@
-fastapi
-uvicorn
-python-multipart
+fastapi==0.95.2
+pydantic==1.10.26
+uvicorn>=0.20.0
+python-multipart>=0.0.5
 jinja2
 pg8000
